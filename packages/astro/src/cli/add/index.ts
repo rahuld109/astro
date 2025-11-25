@@ -984,18 +984,17 @@ async function updateTSConfig(
 	logger: Logger,
 	integrationsInfo: IntegrationInfo[],
 	flags: Flags,
-	options?: { addTypes?: string[]; addIncludes?: string[] },
+	options?: { addIncludes?: string[] },
 ): Promise<UpdateResult> {
 	const integrations = integrationsInfo.map(
 		(integration) => integration.id as frameworkWithTSSettings,
 	);
-	const typesToAppend = Array.from(new Set((options?.addTypes ?? []).filter(Boolean)));
 	const includesToAppend = Array.from(new Set((options?.addIncludes ?? []).filter(Boolean)));
 	const firstIntegrationWithTSSettings = integrations.find((integration) =>
 		presets.has(integration),
 	);
 
-	if (!firstIntegrationWithTSSettings && typesToAppend.length === 0 && includesToAppend.length === 0) {
+	if (!firstIntegrationWithTSSettings && includesToAppend.length === 0) {
 		return UpdateResult.none;
 	}
 
@@ -1020,10 +1019,6 @@ async function updateTSConfig(
 	let outputConfig = firstIntegrationWithTSSettings
 		? updateTSConfigForFramework(inputConfig.rawConfig, firstIntegrationWithTSSettings)
 		: { ...inputConfig.rawConfig };
-
-	if (typesToAppend.length > 0) {
-		outputConfig = addTypesToTSConfig(outputConfig, typesToAppend);
-	}
 
 	if (includesToAppend.length > 0) {
 		outputConfig = addIncludesToTSConfig(outputConfig, includesToAppend);
@@ -1082,53 +1077,16 @@ async function updateTSConfig(
 	}
 }
 
-function addTypesToTSConfig(config: TSConfig, typesToAdd: string[]): TSConfig {
-	if (typesToAdd.length === 0) {
-		return config;
-	}
-
-	const compilerOptions = { ...(config.compilerOptions ?? {}) };
-	const currentTypes = Array.isArray(compilerOptions.types)
-		? [...compilerOptions.types]
-		: compilerOptions.types != null
-			? [compilerOptions.types]
-			: [];
-	let hasChange = false;
-
-	for (const typeRef of typesToAdd) {
-		if (!currentTypes.includes(typeRef)) {
-			currentTypes.push(typeRef);
-			hasChange = true;
-		}
-	}
-
-	if (!hasChange) {
-		return config;
-	}
-
-	return {
-		...config,
-		compilerOptions: {
-			...compilerOptions,
-			types: currentTypes,
-		},
-	};
-}
-
 function addIncludesToTSConfig(config: TSConfig, includesToAdd: string[]): TSConfig {
 	if (includesToAdd.length === 0) {
 		return config;
 	}
 
-	const extendsAstro =
-		typeof config.extends === 'string' && config.extends.startsWith('astro/tsconfigs/');
 	const currentIncludes = Array.isArray(config.include)
 		? [...config.include]
 		: typeof config.include === 'string'
 			? [config.include]
-			: extendsAstro
-				? ['.astro/types.d.ts', '**/*']
-				: ['**/*'];
+			: [];
 
 	let hasChange = false;
 
